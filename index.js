@@ -18,6 +18,80 @@ const BASE_Y_OFFSET = 0.53146565;
 const POS_Z = 15.0;
 const UNIQUE_ID_BASE = 225282455;
 
+const LANGUAGES = {
+    en: {
+        start: 'Hypper Sandbox - Monitor Wall Art Creator\n/build - Create wall art from image\n/lang - Change language',
+        build: 'Send me an image to create monitor wall art',
+        analyzing: 'Analyzing pixels and generating 186x64 wall...',
+        ready: 'Hypper Wall Ready\n186x64 px\n{count} monitors\nRGB short hex format',
+        error: 'Error: {msg}',
+        lang_prompt: 'Select language:',
+        lang_set: 'Language set to English',
+        invalid: 'Invalid. Send /lang again'
+    },
+    zh: {
+        start: 'Hypper沙盒 - 显示器墙艺术创作器\n/build - 从图像创建墙艺术\n/lang - 更改语言',
+        build: '发送一张图片来创建显示器墙艺术',
+        analyzing: '正在分析像素并生成186x64墙...',
+        ready: 'Hypper墙就绪\n186x64像素\n{count}个显示器\nRGB短十六进制格式',
+        error: '错误: {msg}',
+        lang_prompt: '选择语言:',
+        lang_set: '语言设置为中文',
+        invalid: '无效。再次发送 /lang'
+    },
+    ru: {
+        start: 'Hypper Sandbox - Создатель настенного искусства монитора\n/build - Создать настенное искусство из изображения\n/lang - Сменить язык',
+        build: 'Отправьте изображение для создания настенного искусства монитора',
+        analyzing: 'Анализ пикселей и генерация стены 186x64...',
+        ready: 'Стена Hypper готова\n186x64 пикселей\n{count} мониторов\nКороткий формат RGB hex',
+        error: 'Ошибка: {msg}',
+        lang_prompt: 'Выберите язык:',
+        lang_set: 'Язык установлен на русский',
+        invalid: 'Недействительно. Отправьте /lang снова'
+    },
+    es: {
+        start: 'Hypper Sandbox - Creador de arte mural de monitores\n/build - Crear arte mural desde imagen\n/lang - Cambiar idioma',
+        build: 'Envía una imagen para crear arte mural de monitor',
+        analyzing: 'Analizando píxeles y generando pared 186x64...',
+        ready: 'Pared Hypper lista\n186x64 px\n{count} monitores\nFormato RGB hex corto',
+        error: 'Error: {msg}',
+        lang_prompt: 'Selecciona idioma:',
+        lang_set: 'Idioma cambiado a español',
+        invalid: 'Inválido. Envía /lang nuevamente'
+    },
+    fr: {
+        start: 'Hypper Sandbox - Créateur d\'art mural pour moniteur\n/build - Créer une œuvre murale à partir d\'une image\n/lang - Changer la langue',
+        build: 'Envoie une image pour créer une œuvre murale de moniteur',
+        analyzing: 'Analyse des pixels et génération du mur 186x64...',
+        ready: 'Mur Hypper prêt\n186x64 px\n{count} moniteurs\nFormat hex RGB court',
+        error: 'Erreur: {msg}',
+        lang_prompt: 'Choisis la langue:',
+        lang_set: 'Langue changée en français',
+        invalid: 'Invalide. Envoie /lang à nouveau'
+    },
+    de: {
+        start: 'Hypper Sandbox - Monitor Wandkunst Ersteller\n/build - Wandkunst aus Bild erstellen\n/lang - Sprache ändern',
+        build: 'Sende ein Bild, um Monitor-Wandkunst zu erstellen',
+        analyzing: 'Analysiere Pixel und generiere 186x64 Wand...',
+        ready: 'Hypper Wand bereit\n186x64 px\n{count} Monitore\nKurzes RGB Hex Format',
+        error: 'Fehler: {msg}',
+        lang_prompt: 'Sprache wählen:',
+        lang_set: 'Sprache auf Deutsch gesetzt',
+        invalid: 'Ungültig. Sende /lang erneut'
+    }
+};
+
+const userLang = new Map();
+
+function getText(userId, key, replace = {}) {
+    const lang = userLang.get(userId) || 'en';
+    let text = LANGUAGES[lang][key] || LANGUAGES.en[key];
+    for (const [k, v] of Object.entries(replace)) {
+        text = text.replace(`{${k}}`, v);
+    }
+    return text;
+}
+
 function toShortHexComponent(value) {
     return Math.round(value / 17).toString(16);
 }
@@ -117,54 +191,86 @@ async function generateWallData(imageBuffer) {
 
 const bot = new Telegraf(BOT_TOKEN);
 
-bot.command('create', async (ctx) => {
-    await ctx.reply('📸 Send me an image to create Hmonitor wall art');
-    
-    bot.on('photo', async (ctx) => {
-        try {
-            const photo = ctx.message.photo[ctx.message.photo.length - 1];
-            const fileId = photo.file_id;
-            const fileLink = await ctx.telegram.getFileLink(fileId);
-            
-            await ctx.reply('🎨 Analysing pixels and generating 186x64 wall...');
-            
-            const response = await fetch(fileLink.href);
-            const imageBuffer = Buffer.from(await response.arrayBuffer());
-            
-            const wallData = await generateWallData(imageBuffer);
-            const jsonString = JSON.stringify(wallData, null, 2);
-            
-            const outputFileName = `hmonitor_${Date.now()}.svn`;
-            const tempPath = path.join(__dirname, outputFileName);
-            await fs.writeFile(tempPath, jsonString, 'utf8');
-            
-            const monitorCount = MONITOR_COLS * MONITOR_ROWS;
-            
-            await ctx.replyWithDocument({
-                source: tempPath,
-                filename: outputFileName
-            }, {
-                caption: `✅ Hmonitor Wall Ready\n📐 186×64 px\n🖥️ ${monitorCount} monitors\n🎨 #RGB short hex format`
-            });
-            
-            await fs.unlink(tempPath).catch(console.error);
-            
-            bot.off('photo');
-            
-        } catch (error) {
-            console.error(error);
-            await ctx.reply(`❌ Error: ${error.message}`);
-            bot.off('photo');
+bot.start((ctx) => {
+    const userId = ctx.from.id;
+    userLang.set(userId, 'en');
+    ctx.reply(getText(userId, 'start'));
+});
+
+bot.command('lang', (ctx) => {
+    const userId = ctx.from.id;
+    ctx.reply(getText(userId, 'lang_prompt'), {
+        reply_markup: {
+            inline_keyboard: [
+                [{ text: 'English', callback_data: 'lang_en' }],
+                [{ text: '中文', callback_data: 'lang_zh' }],
+                [{ text: 'Русский', callback_data: 'lang_ru' }],
+                [{ text: 'Español', callback_data: 'lang_es' }],
+                [{ text: 'Français', callback_data: 'lang_fr' }],
+                [{ text: 'Deutsch', callback_data: 'lang_de' }]
+            ]
         }
     });
 });
 
-bot.command('start', (ctx) => {
-    ctx.reply('🎮 Hmonitor Bot\n\n/create - Create monitor art by analysing pixels\nSend any image and get 186x64 wall file');
+bot.action(/lang_(.+)/, (ctx) => {
+    const userId = ctx.from.id;
+    const langCode = ctx.match[1];
+    userLang.set(userId, langCode);
+    ctx.answerCbQuery();
+    ctx.reply(getText(userId, 'lang_set'));
+});
+
+let waitingForImage = new Map();
+
+bot.command('build', async (ctx) => {
+    const userId = ctx.from.id;
+    waitingForImage.set(userId, true);
+    await ctx.reply(getText(userId, 'build'));
+});
+
+bot.on('photo', async (ctx) => {
+    const userId = ctx.from.id;
+    if (!waitingForImage.get(userId)) return;
+    
+    try {
+        const photo = ctx.message.photo[ctx.message.photo.length - 1];
+        const fileId = photo.file_id;
+        const fileLink = await ctx.telegram.getFileLink(fileId);
+        
+        await ctx.reply(getText(userId, 'analyzing'));
+        
+        const response = await fetch(fileLink.href);
+        const imageBuffer = Buffer.from(await response.arrayBuffer());
+        
+        const wallData = await generateWallData(imageBuffer);
+        const jsonString = JSON.stringify(wallData, null, 2);
+        
+        const outputFileName = `hypper_${Date.now()}.svn`;
+        const tempPath = path.join(__dirname, outputFileName);
+        await fs.writeFile(tempPath, jsonString, 'utf8');
+        
+        const monitorCount = MONITOR_COLS * MONITOR_ROWS;
+        
+        await ctx.replyWithDocument({
+            source: tempPath,
+            filename: outputFileName
+        }, {
+            caption: getText(userId, 'ready', { count: monitorCount })
+        });
+        
+        await fs.unlink(tempPath).catch(console.error);
+        waitingForImage.delete(userId);
+        
+    } catch (error) {
+        console.error(error);
+        await ctx.reply(getText(userId, 'error', { msg: error.message }));
+        waitingForImage.delete(userId);
+    }
 });
 
 bot.launch();
-console.log('✅ Hmonitor Telegram bot started');
+console.log('Hypper bot running - /start /build /lang');
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
