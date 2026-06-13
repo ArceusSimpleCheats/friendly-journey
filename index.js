@@ -2,6 +2,7 @@ const { Telegraf } = require('telegraf');
 const sharp = require('sharp');
 const fs = require('fs').promises;
 const path = require('path');
+const express = require('express');
 
 const BOT_TOKEN = '8890712007:AAGUuVP8HtmRaSBtrMdkyJ6TUCYE5DIiwLk';
 
@@ -190,6 +191,16 @@ async function generateWallData(imageBuffer) {
 }
 
 const bot = new Telegraf(BOT_TOKEN);
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.get('/', (req, res) => {
+    res.send('Hypper Monitor Wall Bot is running');
+});
+
+app.listen(PORT, () => {
+    console.log(`Web server running on port ${PORT}`);
+});
 
 bot.start((ctx) => {
     const userId = ctx.from.id;
