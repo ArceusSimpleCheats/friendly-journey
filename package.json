@@ -1,0 +1,13 @@
+{
+  "name": "hmonitor-bot",
+  "version": "1.0.0",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node index.js",
+    "build": "npm install"
+  },
+  "dependencies": {
+    "telegraf": "^4.15.3",
+    "sharp": "^0.33.0"
+  }
+}
